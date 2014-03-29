@@ -1,7 +1,12 @@
+# Vim Backups
 *.swp
+# Mac turds
 *.DS_Store
-build
+# Eclipse turds
 .classpath
 .project
-.settings
-.gradle
+.settings/
+bin/
+# Gradle turds
+.gradle/
+build/
