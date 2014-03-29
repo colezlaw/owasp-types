@@ -1,7 +1,10 @@
-package org.owasp.types;
+package org.owasp.types.financial;
 
 import org.junit.Test;
+
 import static org.junit.Assert.*;
+
+import org.owasp.types.ParseException;
 import org.owasp.types.financial.RoutingNumber;
 
 public class RoutingNumberTest {
