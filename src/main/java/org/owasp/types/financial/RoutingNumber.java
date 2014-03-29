@@ -8,7 +8,13 @@ import java.util.regex.Pattern;
 import org.owasp.types.ParseException;
 
 /**
- * Represents a <a href="http://en.wikipedia.org/wiki/Routing_transit_number">Routing Number</a>
+ * Represents a <a href="http://en.wikipedia.org/wiki/Routing_transit_number">Routing Number</a>.
+ * NOTE: This is not yet complete as there are historical issues with the handling of thrifts and
+ * other assigment issues. Currently, it will fail for internal use numbers (50-59), travelers checks (80),
+ * and it's possible there may be legacy institutions in the 81-92 series.
+ * 
+ * Furthermore, while a routing number from this may be syntactically valid, it doesn't mean that
+ * the number is an actual assigned routing number.
  * 
  * @author colezlaw
  *
@@ -17,6 +23,7 @@ public class RoutingNumber {
     private String fedRoutingSymbol;
     private String abaInstitution;
     private String checkDigit;
+    private String prefix;
     
     private static final Set<CharSequence> TYPE_GOVERNMENT = new HashSet<CharSequence>();
     private static final Set<CharSequence> TYPE_PRIMARY = new HashSet<CharSequence>();
@@ -64,8 +71,23 @@ public class RoutingNumber {
      */
     private RoutingNumber() {}
     
+    /**
+     * A valid pattern for MICR form numbers.
+     */
     public static final Pattern PAT_MICR = Pattern.compile("^(\\d{4})(\\d{4})(\\d)$");
     
+    /**
+     * A valid pattern for the fraction form.
+     */
+    public static final Pattern PAT_FRACTION = Pattern.compile("^(([1-9]|[1-9]\\d)-)?(\\d{1,4})/(\\d{1,4})$");
+    
+    /**
+     * Creates a RoutingNumber from a String in MICR format. This will throw
+     * a {@code ParseException} if the MICR form is invalid.
+     * 
+     * @param micr the MICR formatted input
+     * @return the Routing Number represented by the MICR
+     */
     public static RoutingNumber parseMICR(CharSequence micr) {
         if (micr == null) {
             throw new ParseException("Null MICR");
@@ -90,6 +112,38 @@ public class RoutingNumber {
         
         if (Integer.parseInt(ret.checkDigit) != ret.calculateCheckDigit()) {
             throw new ParseException("Check Digit not correct");
+        }
+        
+        return ret;
+    }
+    
+    /**
+     * Creates a Routing Number from the fraction form of a routing number.
+     * 
+     * @param fraction the input fraction type
+     * @return the Routing Number identified by the input
+     */
+    public static RoutingNumber parseFraction(CharSequence fraction) {
+        if (fraction == null) {
+            throw new ParseException("Null Fraction");
+        }
+        final Matcher m = PAT_FRACTION.matcher(fraction);
+        if (! m.matches()) {
+            throw new ParseException("Invalid Fraction syntax");
+        }
+        
+        final RoutingNumber ret = new RoutingNumber();
+        ret.fedRoutingSymbol = String.format("%04d", Integer.parseInt(m.group(4), 10));
+        ret.abaInstitution = String.format("%04d", Integer.parseInt(m.group(3), 10));
+        ret.checkDigit = Integer.toString(ret.calculateCheckDigit());
+        ret.prefix = m.group(2);
+        
+        final String type = ret.fedRoutingSymbol.substring(0,2);
+        if (! TYPE_GOVERNMENT.contains(type)
+                && ! TYPE_PRIMARY.contains(type)
+                && ! TYPE_THRIFT.contains(type)
+                && ! TYPE_ELECTRONIC.contains(type)) {
+            throw new ParseException("Invalid Federal Routing Symbol");
         }
         
         return ret;
@@ -152,6 +206,36 @@ public class RoutingNumber {
     }
     
     /**
-     * Returns the type of federal reserve
+     * Returns the fraction form (PP-YYYY/XXXX) format.
+     * 
+     * @return the routing number in Fraction format
      */
+    public String toFractionString() {
+        StringBuilder result = new StringBuilder(10);
+        
+        if (prefix != null) {
+            result.append(prefix).append("-");
+        }
+        result.append(Integer.parseInt(abaInstitution, 10))
+            .append("/")
+            .append(Integer.parseInt(fedRoutingSymbol, 10));
+        return result.toString();
+    }
+    
+    /**
+     * Returns the type of federal reserve
+     * 
+     * @return the Federal Reserve type
+     */
+    public FedReserveType getFederalReserveType() {
+        if (TYPE_GOVERNMENT.contains(fedRoutingSymbol.substring(0,2))) {
+            return FedReserveType.GOVERNMENT;
+        } else if (TYPE_PRIMARY.contains(fedRoutingSymbol.substring(0,2))) {
+            return FedReserveType.PRIMARY;
+        } else if (TYPE_THRIFT.contains(fedRoutingSymbol.substring(0,2))) {
+            return FedReserveType.THRIFT;
+        } else {
+            return FedReserveType.ELECTRONIC;
+        }
+    }
 }

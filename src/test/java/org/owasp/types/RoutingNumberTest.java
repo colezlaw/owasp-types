@@ -37,5 +37,16 @@ public class RoutingNumberTest {
         assertEquals("ABA Institution Identifier", "0002", rn.getAbaInstitution());
         assertEquals("Check Digit", "5", rn.getCheckDigit());
         assertEquals("111000025", rn.toMICRString());
+        assertEquals("2/1110", rn.toFractionString());
+    }
+    
+    @Test
+    public void testValidFraction() {
+        RoutingNumber rn = RoutingNumber.parseFraction("66-2/1110");
+        assertEquals("Federal Reserve Routing Symbol", "1110", rn.getFedRoutingSymbol());
+        assertEquals("ABA Institution Identifier", "0002", rn.getAbaInstitution());
+        assertEquals("Check Digit", "5", rn.getCheckDigit());
+        assertEquals("111000025", rn.toMICRString());
+        assertEquals("66-2/1110", rn.toFractionString());
     }
 }
